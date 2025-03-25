@@ -320,7 +320,7 @@ static uint8_t battery_read_func(struct bt_conn *conn, uint8_t err,
 	struct bt_gatt_read_params *params,
 	const void *data, uint16_t length)
 {
-	printk("Battery Level = %u%% 0x%04X\n", *((uint8_t *)data), *((uint16_t *)data));
+	printk("Battery Level = %u%%\n", *((uint8_t *)data));
 
 	return BT_GATT_ITER_STOP;
 }
