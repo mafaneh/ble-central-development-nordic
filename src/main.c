@@ -68,16 +68,17 @@ typedef struct adv_data
 
 } custom_adv_data_t;
 
-// Important global variables
+// Semaphores
 static K_SEM_DEFINE(sem_connected, 0, 1);
 static K_SEM_DEFINE(sem_discovered, 0, 1);
 static K_SEM_DEFINE(sem_written, 0, 1);
 static K_SEM_DEFINE(sem_read_operation, 0, 1);
 static K_SEM_DEFINE(sem_disconnected, 0, 1);
 
+// Important global variables
 static uint16_t color_attr_handle;
 static uint16_t battery_level_value_handle;
-static uint32_t current_color_index = 0; // Start with White
+static uint32_t current_color_index = 0; // Start with White (at index 0)
 static struct bt_conn *default_conn;
 
 static struct bt_uuid_16 discover_uuid = BT_UUID_INIT_16(0);
@@ -87,7 +88,7 @@ static struct bt_gatt_read_params read_params;
 
 // Function prototypes
 static void start_scan(void);
-static int change_color(void);
+static int toggle_color(void);
 
 // Functions
 
@@ -284,8 +285,6 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 
 	printk("Connected: %s\n", addr);
-
-	//bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -307,6 +306,8 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 void remote_info_available_cb(struct bt_conn *conn, struct bt_conn_remote_info *remote_info)
 {
+	printk("Remote info from connected device available. We can now discover the GATT database\n");
+
 	k_sem_give(&sem_connected);
 }
 
@@ -349,12 +350,37 @@ static void button_state_changed(uint32_t button_state, uint32_t has_changed)
 	{	
 		printk("Changing color to next one in array\n");
 		current_color_index = (current_color_index + 1) % COLOR_COUNT;
-		change_color();
+		toggle_color();
     }
 	if ((has_changed & BUTTON_BATTERY_LEVEL) && (button_state & BUTTON_BATTERY_LEVEL))
 	{
 		printk("Reading the Battery Level\n");
 		read_battery_level();
+	}
+	if ((has_changed & BUTTON_CONN_PARAMS) && (button_state & BUTTON_CONN_PARAMS))
+	{
+		struct bt_conn_info info;
+		printk("Current Connection Parameters\n");
+		bt_conn_get_info(default_conn, &info);
+		printk("Interval: %u*1.25 ms, Latency: %u, Timeout: %u ms\n",
+			info.le.interval,
+			info.le.latency,
+			info.le.timeout*10); 
+
+		printk("Updating Connection Parameters\n");
+		struct bt_le_conn_param *param = BT_LE_CONN_PARAM(6, 6, 0, 400);
+		bt_conn_le_param_update(default_conn, param);
+
+		// Changing PHY - Not supported by the PlayBulb Candle device, but can be applied with other devices
+		// struct bt_conn_le_phy_param phy_param;
+		// phy_param.pref_tx_phy = BT_GAP_LE_PHY_2M;
+		// phy_param.pref_tx_phy = BT_GAP_LE_PHY_2M;
+		// bt_conn_le_phy_update(default_conn, &phy_param);
+	}
+	if ((has_changed & BUTTON_DISCONNECT) && (button_state & BUTTON_DISCONNECT))
+	{
+		printk("Disconnecting from device\n");
+		bt_conn_disconnect(default_conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 	}
 }
 
@@ -363,7 +389,7 @@ static int init_buttons(void)
     return dk_buttons_init(button_state_changed);
 }
 
-static int change_color(void)
+static int toggle_color(void)
 {
 	int err;
 
