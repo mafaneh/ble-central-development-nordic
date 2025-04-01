@@ -362,14 +362,20 @@ static void button_state_changed(uint32_t button_state, uint32_t has_changed)
 		struct bt_conn_info info;
 		printk("Current Connection Parameters\n");
 		bt_conn_get_info(default_conn, &info);
-		printk("Interval: %u*1.25 ms, Latency: %u, Timeout: %u ms\n",
-			info.le.interval,
+		printk("Interval: %0.2f ms, Latency: %u, Timeout: %u ms\n",
+			info.le.interval*1.25,
 			info.le.latency,
 			info.le.timeout*10); 
 
 		printk("Updating Connection Parameters\n");
 		struct bt_le_conn_param *param = BT_LE_CONN_PARAM(6, 6, 0, 400);
 		bt_conn_le_param_update(default_conn, param);
+
+		printk("Updated Connection Parameters\n");
+		printk("Interval: %0.2f ms, Latency: %u, Timeout: %u ms\n", 
+			param->interval_min*1.25,
+			param->latency,
+			param->timeout*10);
 
 		// Changing PHY - Not supported by the PlayBulb Candle device, but can be applied with other devices
 		// struct bt_conn_le_phy_param phy_param;
