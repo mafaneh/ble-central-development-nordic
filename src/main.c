@@ -229,7 +229,7 @@ static uint8_t discover_func(struct bt_conn *conn,
 			printk("Discover failed (err %d)\n", err);
 		}
 	}
-	else
+	else if (!bt_uuid_cmp(discover_params.uuid, BT_UUID_GATT_CCC))
 	{
 		printk("Discovery of Battery Level Characteristic CCCD Successful. Subscribing to notifications now.\n");
 
